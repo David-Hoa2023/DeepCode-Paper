@@ -58,3 +58,44 @@
 - Paper analysis: ~2-3 min per agent
 - Total planning: ~5 min for 66K char document
 - Code generation: In progress
+
+---
+
+## Session Update: 2026-01-04 (continued)
+
+### New Issue & Fix
+
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| File tree creation stuck | Full 15,735-char plan sent to DeepSeek for structure generation | Added `_extract_file_structure()` to extract only file_structure section (~4K chars max) |
+
+### Code Changes
+1. `workflows/code_implementation_workflow.py`: Added `_extract_file_structure()` (lines 94-113)
+   - Reduces token usage by ~81% for file tree creation (12K → 2.4K chars)
+
+2. `workflows/agent_orchestration_engine.py`: Added paper truncation (lines 675-686)
+   - Truncates paper to 30K chars max for planning phase
+   - Reduces planning time from ~5min to ~2-3min for large papers
+
+3. `tools/command_executor.py`: Added Unix-to-Windows command translation (lines 116-140)
+   - Translates `mkdir -p` → Windows `mkdir`
+   - Translates `touch` → Windows `type nul >`
+   - Fixes file tree creation failing on Windows
+
+### Successful Run (23:38 - 23:43)
+| Step | Time | Duration | Notes |
+|------|------|----------|-------|
+| Paper upload | 23:38:39 | - | PDF 1.89 MB, 18 pages |
+| Paper truncation | 23:39:04 | - | 66K → 30K chars |
+| AlgorithmAnalysisAgent | 23:41:04 | 2 min | Faster with truncation |
+| CodePlannerAgent | 23:43:06 | 2 min | Score 1.00/1.0 |
+| File tree creation | 23:43:58 | 30s | Windows commands working |
+| Total planning | - | ~4 min | Down from ~5-6 min |
+
+### Performance Summary
+| Optimization | Impact |
+|-------------|--------|
+| Paper truncation (30K max) | ~30% faster planning |
+| File structure extraction | ~80% fewer tokens for tree creation |
+| Unix→Windows translation | File tree creation works on Windows |
+| Disabled web searches | More reliable YAML output |

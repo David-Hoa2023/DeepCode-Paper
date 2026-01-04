@@ -113,6 +113,33 @@ async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent
         ]
 
 
+def translate_unix_to_windows(command: str) -> str:
+    """Translate Unix commands to Windows equivalents"""
+    import platform
+    if platform.system() != "Windows":
+        return command
+
+    cmd = command.strip()
+
+    # mkdir -p -> mkdir (Windows mkdir creates parents by default)
+    if cmd.startswith("mkdir -p "):
+        path = cmd[9:].strip().strip('"').strip("'")
+        return f'mkdir "{path}" 2>nul || echo Directory exists'
+
+    # touch -> create empty file
+    if cmd.startswith("touch "):
+        path = cmd[6:].strip().strip('"').strip("'")
+        return f'type nul > "{path}" 2>nul || echo File exists'
+
+    # Handle cd && mkdir -p or cd && touch patterns
+    if " && " in cmd:
+        parts = cmd.split(" && ")
+        translated = [translate_unix_to_windows(p.strip()) for p in parts]
+        return " && ".join(translated)
+
+    return command
+
+
 async def execute_command_batch(
     commands: str, working_directory: str
 ) -> list[types.TextContent]:
@@ -134,6 +161,9 @@ async def execute_command_batch(
         command_lines = [
             cmd.strip() for cmd in commands.strip().split("\n") if cmd.strip()
         ]
+
+        # Translate Unix commands to Windows if needed
+        command_lines = [translate_unix_to_windows(cmd) for cmd in command_lines]
 
         if not command_lines:
             return [

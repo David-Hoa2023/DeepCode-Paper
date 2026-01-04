@@ -91,6 +91,27 @@ class CodeImplementationWorkflow:
         code_directory = os.path.join(target_directory, "generate_code")
         return os.path.exists(code_directory) and len(os.listdir(code_directory)) > 0
 
+    def _extract_file_structure(self, plan_content: str) -> str:
+        """Extract only file_structure section from plan to reduce tokens"""
+        import re
+
+        # Try to find file_structure section in YAML format
+        patterns = [
+            r'file_structure:\s*\|([^#]*?)(?=\n\s*#\s*SECTION|\n\s*implementation_components:|$)',
+            r'# SECTION 1: File Structure.*?\n(.*?)(?=# SECTION 2|$)',
+            r'file_structure:\s*\|(.*?)(?=implementation_components:|validation_approach:|$)',
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, plan_content, re.DOTALL | re.IGNORECASE)
+            if match:
+                extracted = match.group(1).strip()
+                if len(extracted) > 200:  # Valid extraction
+                    return extracted[:4000]  # Limit to 4000 chars max
+
+        # Fallback: return first 4000 chars of plan
+        return plan_content[:4000]
+
     # ==================== 2. Public Interface Methods (External API Layer) ====================
 
     async def run_workflow(
@@ -169,6 +190,10 @@ class CodeImplementationWorkflow:
         """Create file tree structure based on implementation plan"""
         self.logger.info("Starting file tree creation...")
 
+        # Extract only file_structure section to reduce token usage
+        file_structure_content = self._extract_file_structure(plan_content)
+        self.logger.info(f"Extracted file structure: {len(file_structure_content)} chars (from {len(plan_content)} total)")
+
         structure_agent = Agent(
             name="StructureGeneratorAgent",
             instruction=STRUCTURE_GENERATOR_PROMPT,
@@ -180,12 +205,12 @@ class CodeImplementationWorkflow:
                 get_preferred_llm_class(self.config_path)
             )
 
-            message = f"""Analyze the following implementation plan and generate shell commands to create the file tree structure.
+            message = f"""Generate shell commands to create this file tree structure.
 
 Target Directory: {target_directory}/generate_code/
 
-Implementation Plan:
-{plan_content}
+File Structure:
+{file_structure_content}
 
 Tasks:
 1. Find the file tree structure in the implementation plan

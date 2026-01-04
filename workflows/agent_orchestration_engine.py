@@ -672,9 +672,18 @@ async def run_code_analyzer(
                 paper_file_path = os.path.join(paper_dir, filename)
                 with open(paper_file_path, "r", encoding="utf-8") as f:
                     paper_content = f.read()
-                logger.info(
-                    f"📄 Paper file loaded: {paper_file_path} ({len(paper_content)} chars)"
-                )
+                # Truncate paper to reduce tokens (DeepSeek 8K limit)
+                MAX_PAPER_CHARS = 30000  # ~7-8K tokens
+                original_len = len(paper_content)
+                if original_len > MAX_PAPER_CHARS:
+                    paper_content = paper_content[:MAX_PAPER_CHARS] + "\n\n[... truncated for token limit ...]"
+                    logger.info(
+                        f"📄 Paper truncated: {original_len} -> {MAX_PAPER_CHARS} chars"
+                    )
+                else:
+                    logger.info(
+                        f"📄 Paper file loaded: {paper_file_path} ({original_len} chars)"
+                    )
                 break
 
         if not paper_content:
