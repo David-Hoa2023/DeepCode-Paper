@@ -690,18 +690,12 @@ async def run_code_analyzer(
     prompts = get_adaptive_prompts(use_segmentation)
 
     if paper_content:
+        # Disable web searches for faster, more reliable YAML output with DeepSeek
         agent_config = {
             "concept_analysis": [],
-            "algorithm_analysis": ["brave"],
-            "code_planner": [
-                "brave"
-            ],  # Empty list instead of None - code planner doesn't need tools when paper content is provided
+            "algorithm_analysis": [],
+            "code_planner": [],  # No tools needed - paper content is provided directly
         }
-        # agent_config = {
-        #     "concept_analysis": [],
-        #     "algorithm_analysis": [],
-        #     "code_planner": [],  # Empty list instead of None - code planner doesn't need tools when paper content is provided
-        # }
     else:
         agent_config = {
             "concept_analysis": ["filesystem"],
@@ -1475,13 +1469,25 @@ async def synthesize_code_implementation_agent(
     Returns:
         dict: Comprehensive code implementation synthesis result
     """
-    if progress_callback:
-        progress_callback(85, "🔬 Synthesizing intelligent code implementation...")
+    import time
+    impl_start = time.time()
+
+    def _impl_progress(pct: int, msg: str):
+        if progress_callback:
+            elapsed = time.time() - impl_start
+            mins = int(elapsed // 60)
+            secs = int(elapsed % 60)
+            time_str = f"[{mins}m {secs}s]" if mins > 0 else f"[{secs}s]"
+            progress_callback(pct, f"{msg} {time_str}")
+
+    _impl_progress(85, "🔬 Initializing code synthesis engine...")
 
     print(
         "Launching intelligent code synthesis with AI-driven implementation strategies..."
     )
-    await asyncio.sleep(3)  # Brief pause before starting implementation
+    await asyncio.sleep(1)  # Brief pause before starting implementation
+
+    _impl_progress(86, "📦 Loading implementation plan...")
 
     try:
         # Create code implementation workflow instance based on indexing preference
@@ -1494,9 +1500,12 @@ async def synthesize_code_implementation_agent(
             print("⚡ Using standard code implementation workflow (fast mode)...")
             code_workflow = CodeImplementationWorkflow()
 
+        _impl_progress(87, "🔧 Configuring code generator...")
+
         # Check if initial plan file exists
         if os.path.exists(dir_info["initial_plan_path"]):
             print(f"Using initial plan from {dir_info['initial_plan_path']}")
+            _impl_progress(88, "📝 Starting code generation (this may take several minutes)...")
 
             # Run code implementation workflow with pure code mode
             implementation_result = await code_workflow.run_workflow(
@@ -1504,6 +1513,8 @@ async def synthesize_code_implementation_agent(
                 target_directory=dir_info["paper_dir"],
                 pure_code_mode=True,  # Focus on code implementation, skip testing
             )
+
+            _impl_progress(95, "✅ Code generation finished, saving results...")
 
             # Log implementation results
             if implementation_result["status"] == "success":
@@ -1674,10 +1685,19 @@ async def execute_multi_agent_research_pipeline(
     Returns:
         str: The comprehensive pipeline execution result with status and outcomes
     """
+    import time
+    start_time = time.time()
+
+    def _progress(pct: int, msg: str, phase: str = ""):
+        """Enhanced progress callback with timing info"""
+        if progress_callback:
+            elapsed = time.time() - start_time
+            elapsed_str = f"[{int(elapsed)}s]" if elapsed > 0 else ""
+            progress_callback(pct, f"{msg} {elapsed_str}")
+
     try:
         # Phase 0: Workspace Setup
-        if progress_callback:
-            progress_callback(5, "🔄 Setting up workspace for file processing...")
+        _progress(5, "🔄 Setting up workspace for file processing...", "setup")
 
         print("🚀 Initializing intelligent multi-agent research orchestration system")
 
@@ -1696,6 +1716,7 @@ async def execute_multi_agent_research_pipeline(
             print("⚡ Optimized mode - advanced intelligence analysis disabled")
 
         # Phase 1: Input Processing and Validation
+        _progress(7, "📄 Validating and processing input source...", "input")
         input_source = await _process_input_source(input_source, logger)
 
         # Phase 2: Research Analysis and Resource Processing (if needed)
@@ -1703,31 +1724,34 @@ async def execute_multi_agent_research_pipeline(
             input_source.endswith((".pdf", ".docx", ".txt", ".html", ".md"))
             or input_source.startswith(("http", "file://"))
         ):
+            _progress(10, "📊 Starting research content analysis...", "analyze")
             (
                 analysis_result,
                 download_result,
             ) = await orchestrate_research_analysis_agent(
                 input_source, logger, progress_callback
             )
+            _progress(25, "✅ Research analysis complete, processing downloads...", "analyze")
         else:
             download_result = input_source  # Use input directly if already processed
 
         # Phase 3: Workspace Infrastructure Synthesis
-        if progress_callback:
-            progress_callback(
-                40, "🏗️ Synthesizing intelligent workspace infrastructure..."
-            )
+        _progress(30, "🏗️ Creating workspace directory structure...", "workspace")
+        _progress(35, "📁 Initializing project files and folders...", "workspace")
+        _progress(40, "🏗️ Synthesizing intelligent workspace infrastructure...", "workspace")
 
         dir_info = await synthesize_workspace_infrastructure_agent(
             download_result, logger, workspace_dir
         )
-        await asyncio.sleep(5)
+        _progress(42, "✅ Workspace infrastructure ready", "workspace")
+        await asyncio.sleep(2)
 
         # Phase 3.5: Document Segmentation and Preprocessing
-
+        _progress(43, "📑 Preprocessing document for analysis...", "preprocess")
         segmentation_result = await orchestrate_document_preprocessing_agent(
             dir_info, logger
         )
+        _progress(45, "✅ Document preprocessing complete", "preprocess")
 
         # Handle segmentation result
         if segmentation_result["status"] == "success":
@@ -1750,13 +1774,17 @@ async def execute_multi_agent_research_pipeline(
             )
 
         # Phase 4: Code Planning Orchestration
+        _progress(47, "🧠 Initializing code planning agent...", "planning")
         await orchestrate_code_planning_agent(dir_info, logger, progress_callback)
+        _progress(52, "✅ Code architecture plan generated", "planning")
 
         # Phase 5: Reference Intelligence (only when indexing is enabled)
         if enable_indexing:
+            _progress(53, "🔍 Searching for reference implementations...", "references")
             reference_result = await orchestrate_reference_intelligence_agent(
                 dir_info, logger, progress_callback
             )
+            _progress(58, "✅ Reference analysis complete", "references")
         else:
             print("🔶 Skipping reference intelligence analysis (fast mode enabled)")
             # Create empty reference analysis result to maintain file structure consistency
@@ -1766,9 +1794,11 @@ async def execute_multi_agent_research_pipeline(
 
         # Phase 6: Repository Acquisition Automation (optional)
         if enable_indexing:
+            _progress(60, "📥 Downloading reference repositories...", "repos")
             await automate_repository_acquisition_agent(
                 reference_result, dir_info, logger, progress_callback
             )
+            _progress(68, "✅ Repository acquisition complete", "repos")
         else:
             print("🔶 Skipping automated repository acquisition (fast mode enabled)")
             # Create empty download result file to maintain file structure consistency
@@ -1779,9 +1809,11 @@ async def execute_multi_agent_research_pipeline(
 
         # Phase 7: Codebase Intelligence Orchestration (optional)
         if enable_indexing:
+            _progress(70, "🔬 Indexing and analyzing codebase...", "indexing")
             index_result = await orchestrate_codebase_intelligence_agent(
                 dir_info, logger, progress_callback
             )
+            _progress(82, "✅ Codebase intelligence analysis complete", "indexing")
         else:
             print("🔶 Skipping codebase intelligence orchestration (fast mode enabled)")
             # Create a skipped indexing result
@@ -1794,9 +1826,11 @@ async def execute_multi_agent_research_pipeline(
                 f.write(str(index_result))
 
         # Phase 8: Code Implementation Synthesis
+        _progress(85, "🔬 Starting code implementation synthesis...", "implement")
         implementation_result = await synthesize_code_implementation_agent(
             dir_info, logger, progress_callback, enable_indexing
         )
+        _progress(98, "✅ Code implementation complete", "implement")
 
         # Final Status Report
         if enable_indexing:
@@ -1893,13 +1927,22 @@ async def execute_chat_based_planning_pipeline(
     Returns:
         str: The pipeline execution result with status and outcomes
     """
+    import time as time_module
+    start_time = time_module.time()
+
+    def _progress(pct: int, msg: str):
+        """Enhanced progress callback with timing info"""
+        if progress_callback:
+            elapsed = time_module.time() - start_time
+            elapsed_str = f"[{int(elapsed)}s]" if elapsed > 0 else ""
+            progress_callback(pct, f"{msg} {elapsed_str}")
+
     try:
         print("🚀 Initializing chat-based planning and implementation pipeline")
         print("💬 Chat mode: Direct user requirements to code implementation")
 
         # Phase 0: Workspace Setup
-        if progress_callback:
-            progress_callback(5, "🔄 Setting up workspace for file processing...")
+        _progress(5, "🔄 Setting up workspace for file processing...")
 
         # Setup local workspace directory
         workspace_dir = os.path.join(os.getcwd(), "deepcode_lab")
@@ -1908,22 +1951,20 @@ async def execute_chat_based_planning_pipeline(
         print("📁 Working environment: local")
         print(f"📂 Workspace directory: {workspace_dir}")
         print("✅ Workspace status: ready")
+        _progress(8, "✅ Workspace initialized")
 
         # Phase 1: Chat-Based Planning
-        if progress_callback:
-            progress_callback(
-                30,
-                "💬 Generating comprehensive implementation plan from user requirements...",
-            )
+        _progress(10, "💬 Analyzing your requirements...")
+        _progress(15, "🧠 Initializing planning agent...")
+        _progress(20, "📝 Generating implementation plan...")
 
         print("🧠 Running chat-based planning agent...")
         planning_result = await run_chat_planning_agent(user_input, logger)
+        _progress(40, "✅ Implementation plan generated")
 
         # Phase 2: Workspace Infrastructure Synthesis
-        if progress_callback:
-            progress_callback(
-                50, "🏗️ Synthesizing intelligent workspace infrastructure..."
-            )
+        _progress(45, "🏗️ Creating project structure...")
+        _progress(50, "🏗️ Synthesizing intelligent workspace infrastructure...")
 
         # Create workspace directory structure for chat mode
         # First, let's create a temporary directory structure that mimics a paper workspace
@@ -1985,25 +2026,28 @@ The following implementation plan was generated by the AI chat planning agent:
         dir_info = await synthesize_workspace_infrastructure_agent(
             synthetic_download_result, logger, workspace_dir
         )
-        await asyncio.sleep(10)  # Brief pause for file system operations
+        _progress(60, "✅ Project structure created")
+        await asyncio.sleep(3)  # Brief pause for file system operations
 
         # Phase 3: Save Planning Result
-        if progress_callback:
-            progress_callback(70, "📝 Saving implementation plan...")
+        _progress(65, "📝 Saving implementation plan...")
 
         # Save the planning result to the initial_plan.txt file (same location as Phase 4 in original pipeline)
         initial_plan_path = dir_info["initial_plan_path"]
         with open(initial_plan_path, "w", encoding="utf-8") as f:
             f.write(planning_result)
         print(f"💾 Implementation plan saved to {initial_plan_path}")
+        _progress(70, "✅ Plan saved successfully")
 
         # Phase 4: Code Implementation Synthesis (same as Phase 8 in original pipeline)
-        if progress_callback:
-            progress_callback(85, "🔬 Synthesizing intelligent code implementation...")
+        _progress(75, "🔬 Initializing code generator...")
+        _progress(80, "📦 Preparing implementation environment...")
+        _progress(85, "🔬 Synthesizing intelligent code implementation...")
 
         implementation_result = await synthesize_code_implementation_agent(
             dir_info, logger, progress_callback, enable_indexing
         )
+        _progress(98, "✅ Code generation complete")
 
         # Final Status Report
         pipeline_summary = f"Chat-based planning and implementation pipeline completed for {dir_info['paper_dir']}"

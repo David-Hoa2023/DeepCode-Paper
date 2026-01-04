@@ -348,13 +348,12 @@ Requirements:
                 self.logger.warning(f"Time limit reached: {elapsed_time:.2f}s")
                 break
 
-            # # Test simplified memory approach if we have files implemented
-            # if iteration == 5 and code_agent.get_files_implemented_count() > 0:
-            #     self.logger.info("🧪 Testing simplified memory approach...")
-            #     test_results = await memory_agent.test_simplified_memory_approach()
-            #     self.logger.info(f"Memory test results: {test_results}")
-
-            # self.logger.info(f"Pure code implementation iteration {iteration}: generating code")
+            # Progress logging every 5 iterations or for first few iterations
+            files_count = code_agent.get_files_implemented_count() if hasattr(code_agent, 'get_files_implemented_count') else 0
+            if iteration <= 3 or iteration % 5 == 0:
+                mins_elapsed = int(elapsed_time / 60)
+                secs_elapsed = int(elapsed_time % 60)
+                print(f"   📝 Implementation step {iteration} | Files created: {files_count} | Time: {mins_elapsed}m {secs_elapsed}s")
 
             messages = self._validate_messages(messages)
             current_system_message = code_agent.get_system_prompt()
