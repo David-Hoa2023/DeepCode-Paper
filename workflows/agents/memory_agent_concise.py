@@ -1929,67 +1929,55 @@ Write_file can be used to implement the new component
     def get_unimplemented_files(self) -> List[str]:
         """
         Get list of files that haven't been implemented yet
-        Uses fuzzy path matching to handle partial paths
+        Uses robust fuzzy path matching to handle various path formats
 
         Returns:
             List of file paths that still need to be implemented
         """
 
-        # def is_implemented(plan_file: str) -> bool:
-        #     """Check if a file from plan is implemented (with fuzzy matching)"""
-        #     # Normalize paths for comparison
-        #     plan_file_normalized = plan_file.replace("\\", "/").strip("/")
-        #     plan_filename = plan_file_normalized.split("/")[-1]  # Extract filename
+        def normalize_path(path: str) -> str:
+            """Normalize a path for comparison"""
+            # Replace backslashes, strip leading/trailing slashes
+            normalized = path.replace("\\", "/").strip("/")
+            # Remove common prefixes like generate_code/, code/, etc.
+            prefixes_to_strip = ["generate_code/", "code/", "src/"]
+            for prefix in prefixes_to_strip:
+                if normalized.startswith(prefix):
+                    normalized = normalized[len(prefix):]
+            return normalized
 
-        #     for impl_file in self.implemented_files:
-        #         impl_file_normalized = impl_file.replace("\\", "/").strip("/")
-        #         impl_filename = impl_file_normalized.split("/")[-1]  # Extract filename
+        def get_filename(path: str) -> str:
+            """Extract just the filename from a path"""
+            return path.replace("\\", "/").split("/")[-1]
 
-        #         # Strategy 1: Exact path match
-        #         if plan_file_normalized == impl_file_normalized:
-        #             return True
-
-        #         # Strategy 2: One path ends with the other (partial path match)
-        #         if plan_file_normalized.endswith(
-        #             impl_file_normalized
-        #         ) or impl_file_normalized.endswith(plan_file_normalized):
-        #             # Ensure match is at a path boundary (not middle of directory name)
-        #             if (
-        #                 plan_file_normalized.endswith("/" + impl_file_normalized)
-        #                 or impl_file_normalized.endswith("/" + plan_file_normalized)
-        #             ):
-        #                 return True
-
-        #         # Strategy 3: Same filename (fallback for different directory structures)
-        #         # Only match if filenames are identical and reasonably unique (length > 5)
-        #         if (plan_filename == impl_filename and len(plan_filename) > 5):
-        #             return True
-
-        #     return False
         def is_implemented(plan_file: str) -> bool:
-            """Check if a file from plan is implemented (with fuzzy matching)"""
-            # Normalize paths for comparison
-            plan_file_normalized = plan_file.replace("\\", "/").strip("/")
+            """Check if a file from plan is implemented (with robust fuzzy matching)"""
+            plan_normalized = normalize_path(plan_file)
+            plan_filename = get_filename(plan_file)
 
             for impl_file in self.implemented_files:
-                impl_file_normalized = impl_file.replace("\\", "/").strip("/")
+                impl_normalized = normalize_path(impl_file)
+                impl_filename = get_filename(impl_file)
 
-                # Check if plan_file ends with impl_file (partial path match)
-                # or impl_file ends with plan_file (reverse partial match)
-                if plan_file_normalized.endswith(
-                    impl_file_normalized
-                ) or impl_file_normalized.endswith(plan_file_normalized):
-                    # Ensure match is at a path boundary (not middle of directory name)
-                    if (
-                        plan_file_normalized.endswith("/" + impl_file_normalized)
-                        or plan_file_normalized == impl_file_normalized
-                        or impl_file_normalized.endswith("/" + plan_file_normalized)
-                    ):
+                # Strategy 1: Exact normalized path match
+                if plan_normalized == impl_normalized:
+                    return True
+
+                # Strategy 2: One path ends with the other (partial path match)
+                if plan_normalized.endswith(impl_normalized):
+                    # Check for path boundary match
+                    if plan_normalized == impl_normalized or plan_normalized.endswith("/" + impl_normalized):
                         return True
-            return False
+                if impl_normalized.endswith(plan_normalized):
+                    if impl_normalized == plan_normalized or impl_normalized.endswith("/" + plan_normalized):
+                        return True
 
-        # unimplemented = [f for f in self.all_files_list if not is_implemented(f)]
-        # return unimplemented
+                # Strategy 3: Same filename match (for files with unique names)
+                # Match if filenames are identical and have file extension
+                if plan_filename == impl_filename and "." in plan_filename:
+                    return True
+
+            return False
 
         unimplemented = [f for f in self.all_files_list if not is_implemented(f)]
         return unimplemented

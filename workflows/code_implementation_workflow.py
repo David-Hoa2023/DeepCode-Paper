@@ -333,6 +333,11 @@ Requirements:
         start_time = time.time()
         max_time = 7200  # 120 minutes (2 hours)
 
+        # Progress tracking to detect stuck loops
+        last_progress_check_files = 0
+        iterations_without_progress = 0
+        max_iterations_without_progress = 50  # Exit if no new files for 50 iterations
+
         # Initialize specialized agents
         code_agent = CodeImplementationAgent(
             self.mcp_agent, self.logger, self.enable_read_tools
@@ -468,6 +473,28 @@ Requirements:
                 self.logger.info(
                     "✅ Code implementation complete - All files implemented"
                 )
+                break
+
+            # Track progress to detect stuck loops
+            current_files_count = code_agent.get_files_implemented_count()
+            if current_files_count > last_progress_check_files:
+                # Progress made - reset counter
+                last_progress_check_files = current_files_count
+                iterations_without_progress = 0
+            else:
+                iterations_without_progress += 1
+
+            # Exit if stuck for too long without implementing new files
+            if iterations_without_progress >= max_iterations_without_progress:
+                self.logger.warning(
+                    f"⚠️ No progress for {max_iterations_without_progress} iterations "
+                    f"({current_files_count} files implemented, {len(unimplemented_files)} remaining). "
+                    f"Exiting to prevent infinite loop."
+                )
+                print(f"\n⚠️ STUCK DETECTED: No new files implemented for {max_iterations_without_progress} iterations")
+                print(f"   Files implemented: {current_files_count}")
+                print(f"   Files remaining: {len(unimplemented_files)}")
+                print(f"   Remaining files: {unimplemented_files[:5]}...")
                 break
 
             # Emergency trim if too long

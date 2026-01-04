@@ -61,6 +61,48 @@
 
 ---
 
+## Session: 2026-01-05
+
+### Issue: CodeImplementationAgent Infinite Loop (2+ hours)
+
+**Symptom**: Agent made tool calls continuously for ~2 hours without terminating
+```
+23:46:05 → 01:44:50 = ~2 hours of "Requesting tool call" logs
+```
+
+**Root Cause**: Path mismatch in `get_unimplemented_files()` method
+- `all_files_list` contains paths like `project/src/model/file.py`
+- `implemented_files` contains paths like `file.py` or `model/file.py`
+- The fuzzy matching logic was too strict, never matching files as "implemented"
+- Loop never detected completion → ran until 2-hour timeout
+
+### Fixes Applied
+
+| File | Change |
+|------|--------|
+| `workflows/agents/memory_agent_concise.py` | Improved `get_unimplemented_files()` path matching with 3 strategies: normalized path match, partial path suffix match, filename match |
+| `workflows/code_implementation_workflow.py` | Added stuck-loop detection: exits after 50 iterations without new file implementations |
+
+### Code Changes
+
+1. **`memory_agent_concise.py` (lines 1929-1983)**: New `is_implemented()` with:
+   - `normalize_path()`: Strips common prefixes like `generate_code/`, `code/`, `src/`
+   - Strategy 1: Exact normalized path match
+   - Strategy 2: Partial path suffix match with boundary check
+   - Strategy 3: Same filename match (for unique filenames with extensions)
+
+2. **`code_implementation_workflow.py` (lines 336-339, 478-498)**: Progress tracking:
+   - Tracks `iterations_without_progress` counter
+   - Exits with warning if no new files for 50 consecutive iterations
+   - Logs remaining files for debugging
+
+### Lessons Learned
+1. Path normalization is critical when comparing file paths from different sources
+2. Always add timeout/progress detection for long-running loops
+3. The termination condition `get_unimplemented_files() == []` depends on accurate path matching
+
+---
+
 ## Session Update: 2026-01-04 (continued)
 
 ### New Issue & Fix
