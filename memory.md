@@ -496,4 +496,103 @@ Think of DeepCode as a very capable junior developer - it does the heavy lifting
 
 ---
 
-*Last updated: 2026-01-05*
+---
+
+## Paper #8: SAGA Framework Analysis & Adaptation Plan
+
+### What is SAGA?
+
+**SAGA** = Scientific Autonomous Goal-evolving Agent
+
+A bi-level optimization framework that uses LLM agents to dynamically evolve objectives for scientific discovery. Instead of fixed optimization goals, SAGA continuously refines objectives based on results.
+
+**Location**: `deepcode_lab/papers/8/generate_code/saga/`
+
+### SAGA Architecture Overview
+
+```
+OUTER LOOP (Objective Evolution):
+  Planner → Implementer → Optimizer → Analyzer → (repeat)
+
+INNER LOOP (Genetic Algorithm):
+  Selection → Crossover → Mutation → Evaluation → (repeat)
+```
+
+**Key Components**:
+| Component | Purpose |
+|-----------|---------|
+| `saga_controller.py` | Central orchestrator (32KB, 2100+ lines) |
+| `planner.py` | Proposes/evolves objectives |
+| `implementer.py` | Generates scoring functions |
+| `analyzer.py` | Identifies deficiencies, detects reward hacking |
+| `genetic_algorithm.py` | Inner-loop optimization |
+| `registry.py` | Dynamic scorer registration |
+
+**Supported Domains**:
+- `antibiotic/` - Drug discovery (SMILES, RDKit)
+- `materials/` - Permanent magnet design (pymatgen)
+- `dna/` - DNA enhancer sequences
+- `chemical_process/` - Flowsheet optimization
+
+### Plan: SAGA for Autonomous Coding
+
+Created a detailed plan to adapt SAGA for AI agentic coding.
+
+**Plan Location**: `C:\Users\Administrator\.claude\plans\breezy-tickling-eclipse.md`
+
+**Goal**: Build an autonomous coding assistant that:
+- Generates multi-file projects from specifications
+- Evolves objectives based on code quality, user feedback, execution results
+- Uses GA with LLM-assisted mutations for code improvement
+
+### Planned New Files
+
+```
+saga/domains/coding/           # NEW DOMAIN
+├── representation.py          # CodeFile, CodeProject, CodeSolution
+├── optimization.py            # CodingGAConfig, CodingGeneticAlgorithm
+├── scorers.py                 # 7 scoring functions
+├── validators.py              # Code validation
+└── templates.py               # Language templates
+
+saga/core/agents/              # EXTENDED AGENTS
+├── coding_planner.py          # CodingPlanner
+├── coding_implementer.py      # CodingImplementer
+└── coding_analyzer.py         # CodingAnalyzer
+
+workflows/                     # WORKFLOW INTEGRATION
+├── agents/
+│   └── coding_memory_agent.py # CodingMemoryAgent
+├── coding_workflow.py         # AutonomousCodingWorkflow
+└── coding_mcp_integration.py  # MCP integration
+```
+
+### Planned Coding Scorers
+
+| Scorer | Purpose |
+|--------|---------|
+| `TestPassRateScorer` | % of tests passing |
+| `LintScoreScorer` | Code quality via ruff |
+| `ComplexityScoreScorer` | Cyclomatic complexity |
+| `CoverageScoreScorer` | Test coverage % |
+| `ExecutionSuccessScorer` | Runs without errors |
+| `DocumentationQualityScorer` | Docstring/type hint coverage |
+| `UserFeedbackScorer` | Human ratings |
+
+### Key Design Decisions
+
+1. **Genome = CodeProject**: Multi-file project serialized to JSON
+2. **LLM-assisted mutations**: 30% use LLM for semantic code changes
+3. **Evolving weights**: Planner adjusts scorer weights based on deficiencies
+4. **DeepCode integration**: Uses ConciseMemoryAgent pattern for context management
+
+### Convergence Criteria
+
+- Test pass rate >= 95%
+- Lint score >= 90%
+- Coverage >= 80%
+- OR no improvement for 3 consecutive iterations
+
+---
+
+*Last updated: 2026-01-06*
